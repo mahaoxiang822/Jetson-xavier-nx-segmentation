@@ -8,12 +8,18 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
 import torch.utils.data
+import argparse
 from PIL import Image
 from torchvision import transforms
 from util import AverageMeter
 
 cv2.ocl.setUseOpenCL(False)
 
+def get_args():
+    parser = argparse.ArgumentParser(description="test")
+    parser.add_argument("-m",type=str,help="model path",required=True)
+    parser.add_argument("-d",type=str,help="test data path",required=True)
+    return parser.parse_args()
 
 def get_logger():
     logger_name = "main-logger"
@@ -27,17 +33,18 @@ def get_logger():
 
 
 def main():
-    global logger
+    global logger,args
     logger = get_logger()
+    args = get_args()
 
     result_folder = os.path.join("result")
     if not os.path.exists(result_folder):
         os.makedirs(result_folder)
-    data_list = os.listdir("testJPEGImages")
+    data_list = os.listdir(args.d)
 
     from torch2trt import TRTModule
     model = TRTModule()
-    model.load_state_dict(torch.load("bisenet_fp16.pth"))
+    model.load_state_dict(torch.load(args.m))
     model = model.cuda().half()
     test(data_list, model, result_folder)
 
@@ -53,7 +60,7 @@ def test(data_list, model, result_folder):
         transforms.ToTensor(),
         transforms.Normalize([.485, .456, .406], [.229, .224, .225])])
     for i,img_path in enumerate(data_list):
-        img_path = os.path.join("testJPEGImages",img_path)
+        img_path = os.path.join(args.d,img_path)
         image = Image.open(img_path).convert('RGB')
         image = image_transform(image).cuda()
         input = torch.unsqueeze(image,0)
